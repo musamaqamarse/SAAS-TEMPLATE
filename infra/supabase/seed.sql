@@ -1,0 +1,2 @@
+-- Local-only seed data. Loaded by `supabase db reset`.
+-- Add fixtures here for local development.

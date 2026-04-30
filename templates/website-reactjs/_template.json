@@ -1,0 +1,8 @@
+{
+  "name": "website-reactjs",
+  "role": "website",
+  "displayName": "React + Vite Website",
+  "language": "typescript",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "website"
+}

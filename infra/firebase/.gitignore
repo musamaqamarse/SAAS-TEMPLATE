@@ -1,0 +1,7 @@
+.firebase/
+firebase-debug.log
+firestore-debug.log
+storage-debug.log
+ui-debug.log
+.runtimeconfig.json
+service-account.json

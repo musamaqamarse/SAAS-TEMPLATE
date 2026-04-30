@@ -1,0 +1,8 @@
+{
+  "name": "adminpanel-nextjs",
+  "role": "adminpanel",
+  "displayName": "Admin Panel (Next.js)",
+  "language": "typescript",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "adminpanel"
+}

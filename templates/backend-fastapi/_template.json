@@ -1,0 +1,8 @@
+{
+  "name": "backend-fastapi",
+  "role": "backend",
+  "displayName": "FastAPI Backend",
+  "language": "python",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "backend"
+}

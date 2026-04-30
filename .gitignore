@@ -1,0 +1,42 @@
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Test scaffolds (so you can dry-run the CLI inside the repo without committing the output)
+/_scaffold-out/
+/scratch/
+/test-fresh/
+/_out/
+
+# Safety net — never commit these even if someone tests locally inside the repo
+**/service-account.json
+**/GoogleService-Info.plist
+**/google-services.json
+**/firebase_options.dart
+
+# Python (in case you test FastAPI templates locally)
+__pycache__/
+*.pyc
+.venv/
+.python-version
+
+# Flutter (in case you test Flutter templates locally)
+.dart_tool/
+.packages
+build/

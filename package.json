@@ -1,0 +1,31 @@
+{
+  "name": "saas-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SaaS scaffolding engine: spin up backend + website + admin + mobile starters wired to Supabase or Firebase.",
+  "type": "module",
+  "bin": {
+    "create-saas": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "create": "tsx src/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/prompts": "^2.4.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

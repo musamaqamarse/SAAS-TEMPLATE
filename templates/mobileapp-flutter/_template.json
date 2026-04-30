@@ -1,0 +1,8 @@
+{
+  "name": "mobileapp-flutter",
+  "role": "mobileapp",
+  "displayName": "Flutter Mobile App",
+  "language": "dart",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "mobileapp"
+}

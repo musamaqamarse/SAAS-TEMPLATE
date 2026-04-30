@@ -1,0 +1,8 @@
+{
+  "name": "website-nextjs",
+  "role": "website",
+  "displayName": "Next.js Website",
+  "language": "typescript",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "website"
+}

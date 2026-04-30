@@ -1,0 +1,8 @@
+{
+  "name": "backend-nextjs-api",
+  "role": "backend",
+  "displayName": "Next.js API Routes Backend",
+  "language": "typescript",
+  "supports": ["supabase", "firebase"],
+  "folderSuffix": "backend"
+}
