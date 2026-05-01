@@ -3,6 +3,10 @@
   "role": "adminpanel",
   "displayName": "Admin Panel (Next.js)",
   "language": "typescript",
-  "supports": ["supabase", "firebase"],
-  "folderSuffix": "adminpanel"
+  "supports": [
+    "supabase",
+    "firebase"
+  ],
+  "folderSuffix": "adminpanel",
+  "version": "1.0.0"
 }

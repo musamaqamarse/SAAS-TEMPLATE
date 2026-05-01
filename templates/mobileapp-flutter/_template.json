@@ -3,6 +3,10 @@
   "role": "mobileapp",
   "displayName": "Flutter Mobile App",
   "language": "dart",
-  "supports": ["supabase", "firebase"],
-  "folderSuffix": "mobileapp"
+  "supports": [
+    "supabase",
+    "firebase"
+  ],
+  "folderSuffix": "mobileapp",
+  "version": "1.0.0"
 }

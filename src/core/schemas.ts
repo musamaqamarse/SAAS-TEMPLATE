@@ -27,7 +27,7 @@ export const TemplateMetaSchema = z.object({
   language: z.enum(["typescript", "python", "dart"]),
   supports: z.array(DataStackSchema).min(1),
   folderSuffix: z.string().min(1),
-  /** Optional but recommended — enables future `update` command. */
+  /** Recommended — enables future `update` command and is recorded in saas.config.json. */
   version: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
 });
 export type TemplateMeta = z.infer<typeof TemplateMetaSchema>;
@@ -36,6 +36,13 @@ export type TemplateMeta = z.infer<typeof TemplateMetaSchema>;
  * Final scaffold input. Single source of truth shared by the CLI, future web
  * UI, and the headless engine. All consumers produce a `ScaffoldConfig`; the
  * scaffolder only ever takes one of these.
+ *
+ * Fields fall into three groups:
+ *   - identity: projectName/Kebab/Snake/Pascal, bundleId, description
+ *   - composition: dataStack + per-app picks + includeInfra
+ *   - scaffolding-time intent (CLI-only): destDir, initGit, createGithubRepos,
+ *     githubVisibility — the engine ignores these; they exist so the CLI can
+ *     drive its post-scaffold side effects from one config object.
  */
 export const ScaffoldConfigSchema = z.object({
   projectName: z.string().min(2),
@@ -58,3 +65,40 @@ export const ScaffoldConfigSchema = z.object({
   githubVisibility: z.enum(["private", "public"]),
 });
 export type ScaffoldConfig = z.infer<typeof ScaffoldConfigSchema>;
+
+/**
+ * Persisted shape of `saas.config.json`, written into every scaffolded
+ * project root. This is the contract that future lifecycle commands
+ * (`update`, `add`, `remove`) rely on, so be careful when changing it —
+ * bump `schemaVersion` if you do.
+ */
+export const SaasProjectConfigSchema = z.object({
+  schemaVersion: z.literal(1),
+  createdAt: z.string(),
+  cliVersion: z.string(),
+  project: z.object({
+    name: z.string(),
+    kebab: z.string(),
+    snake: z.string(),
+    pascal: z.string(),
+    bundleId: z.string(),
+    description: z.string(),
+  }),
+  composition: z.object({
+    dataStack: DataStackSchema,
+    backend: BackendChoiceSchema,
+    website: WebsiteChoiceSchema,
+    adminPanel: AdminChoiceSchema,
+    mobile: MobileChoiceSchema,
+    includeInfra: z.boolean(),
+  }),
+  templates: z.array(
+    z.object({
+      name: z.string(),
+      role: z.string(),
+      version: z.string(),
+      folder: z.string(),
+    })
+  ),
+});
+export type SaasProjectConfig = z.infer<typeof SaasProjectConfigSchema>;

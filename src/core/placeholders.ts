@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { ScaffoldConfig } from "./types.js";
+import type { ScaffoldConfig } from "./schemas.js";
 
 const TEXT_EXTENSIONS = new Set([
   ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".mdx",
@@ -12,6 +12,7 @@ const TEXT_EXTENSIONS = new Set([
   ".sql", ".rules", ".indexes",
   ".gitignore", ".dockerignore", ".gitattributes", ".npmrc",
   ".xml", ".plist", ".gradle", ".kts", ".properties",
+  ".cursorrules",
 ]);
 
 const BINARY_HINT_EXTENSIONS = new Set([

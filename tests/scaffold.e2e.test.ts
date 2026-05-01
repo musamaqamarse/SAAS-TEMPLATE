@@ -2,8 +2,14 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { scaffold } from "../src/scaffold.js";
-import type { ScaffoldConfig } from "../src/types.js";
+import { scaffold, type ScaffoldConfig } from "../src/core/index.js";
+import { repoRoot } from "../src/utils.js";
+
+const OPTIONS = {
+  templatesRoot: path.join(repoRoot(), "templates"),
+  infraRoot: path.join(repoRoot(), "infra"),
+  cliVersion: "0.1.0-test",
+};
 
 function makeConfig(destDir: string, dataStack: "supabase" | "firebase"): ScaffoldConfig {
   return {
@@ -52,24 +58,31 @@ describe("scaffold (e2e smoke)", () => {
 
   it("scaffolds backend + website + adminpanel + infra for Supabase", async () => {
     const dest = path.join(tmp, "smoke-test");
-    await scaffold(makeConfig(dest, "supabase"));
+    const result = await scaffold(makeConfig(dest, "supabase"), OPTIONS);
 
     const subfolders = await fs.readdir(dest);
     expect(subfolders).toContain("smoke-test-backend");
     expect(subfolders).toContain("smoke-test-website");
     expect(subfolders).toContain("smoke-test-adminpanel");
     expect(subfolders).toContain("smoke-test-infra");
+    expect(subfolders).toContain("saas.config.json");
+    expect(subfolders).toContain("CLAUDE.md");
+    expect(subfolders).toContain("agents.md");
+    expect(subfolders).toContain(".cursorrules");
 
     const files = await listFilesRecursive(dest);
     const allText = files.join("\n");
     expect(allText).not.toMatch(/__PROJECT_NAME__/);
     expect(allText).not.toMatch(/__PROJECT_KEBAB__/);
     expect(allText).not.toMatch(/__BUNDLE_ID__/);
+
+    expect(result.scaffolded.length).toBeGreaterThan(0);
+    expect(result.saasConfigPath.endsWith("saas.config.json")).toBe(true);
   });
 
   it("scaffolds backend + website + adminpanel + infra for Firebase", async () => {
     const dest = path.join(tmp, "smoke-test-fb");
-    await scaffold(makeConfig(dest, "firebase"));
+    await scaffold(makeConfig(dest, "firebase"), OPTIONS);
 
     const subfolders = await fs.readdir(dest);
     expect(subfolders).toContain("smoke-test-backend");
@@ -87,7 +100,7 @@ describe("scaffold (e2e smoke)", () => {
     const dest = path.join(tmp, "occupied");
     await fs.mkdir(dest, { recursive: true });
     await fs.writeFile(path.join(dest, "preexisting.txt"), "hi");
-    await expect(scaffold(makeConfig(dest, "supabase"))).rejects.toThrow(/not empty/);
+    await expect(scaffold(makeConfig(dest, "supabase"), OPTIONS)).rejects.toThrow(/not empty/);
   });
 
   it("rejects no-apps configurations", async () => {
@@ -98,6 +111,6 @@ describe("scaffold (e2e smoke)", () => {
     cfg.adminPanel = "none";
     cfg.mobile = "none";
     cfg.includeInfra = false;
-    await expect(scaffold(cfg)).rejects.toThrow(/No apps selected/);
+    await expect(scaffold(cfg, OPTIONS)).rejects.toThrow(/No apps selected/);
   });
 });

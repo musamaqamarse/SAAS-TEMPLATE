@@ -86,6 +86,28 @@ pnpm test                   # run the test suite (vitest)
 pnpm validate:templates     # verify every template's _template.json
 ```
 
+### Non-interactive mode (CI / agents)
+
+Every prompt is answerable with a flag, so you can scaffold without any interaction:
+
+```bash
+pnpm dev my-cool-app --yes \
+  --data-stack supabase --backend fastapi --website nextjs \
+  --admin nextjs --mobile flutter --bundle-vendor com.acme
+```
+
+Or load a saved JSON `ScaffoldConfig`:
+
+```bash
+pnpm dev --config ./my-config.json
+```
+
+Every scaffolded project also gets a `saas.config.json` at its root — it records the composition, project identity, CLI version, and the exact template versions used. This is the contract that the upcoming `update`, `add`, and `remove` commands will read from.
+
+### AI-tool ready
+
+Every scaffold writes a tuned `CLAUDE.md`, `agents.md`, and `.cursorrules` at the project root, documenting the stack, ports, env vars, auth model, and conventions for the chosen combination. AI coding assistants pick these up automatically.
+
 ### Telemetry & crash reporting
 
 Both are **off by default**. Enable opt-in with environment variables:
@@ -190,11 +212,17 @@ pnpm dev test-app
 
 ```
 .
-├── src/                 The CLI (TypeScript)
-│   ├── index.ts         Entry point
-│   ├── prompts.ts       Interactive prompts
-│   ├── scaffold.ts      Orchestrates copying + flutter create + git init
-│   ├── placeholders.ts  Substitutes __PROJECT_NAME__ etc. in files + filenames
+├── src/
+│   ├── core/            Headless engine (the @create-saas/core surface)
+│   │   ├── scaffold.ts    scaffold(config, options) — single entry point
+│   │   ├── schemas.ts     Zod schemas for ScaffoldConfig / TemplateMeta / SaasProjectConfig
+│   │   ├── placeholders.ts  Substitutes __PROJECT_NAME__ etc. in files + filenames
+│   │   ├── saas-config.ts   Writes saas.config.json into every scaffold
+│   │   └── agent-rules.ts   Writes CLAUDE.md / agents.md / .cursorrules per stack
+│   ├── index.ts         CLI entry — thin layer over core
+│   ├── prompts.ts       Interactive prompts (build a ScaffoldConfig)
+│   ├── flags.ts         Argv parser for non-interactive mode
+│   ├── git.ts           Per-folder git init + gh repo create
 │   └── ...
 ├── templates/           Per-app templates
 │   ├── backend-fastapi/
@@ -254,7 +282,7 @@ The CLI auto-discovers templates — no registration step.
 
 **Swap a default:** the prompts live in `src/prompts.ts` — edit the `initial` values to change defaults.
 
-**Add a new placeholder:** edit `src/placeholders.ts:buildReplacements()`.
+**Add a new placeholder:** edit `src/core/placeholders.ts:buildReplacements()`.
 
 ---
 

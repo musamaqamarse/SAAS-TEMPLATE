@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { TemplateMetaSchema } from "../src/schemas.js";
-import { loadTemplateMeta } from "../src/scaffold.js";
+import { TemplateMetaSchema, loadTemplateMeta } from "../src/core/index.js";
 import { repoRoot } from "../src/utils.js";
 
 const TEMPLATES_ROOT = path.join(repoRoot(), "templates");

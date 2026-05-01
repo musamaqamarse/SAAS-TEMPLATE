@@ -2,15 +2,49 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import pc from "picocolors";
-import { ScaffoldConfig, TemplateMeta } from "./types.js";
+import type { ScaffoldConfig, TemplateMeta } from "./schemas.js";
 import { TemplateMetaSchema } from "./schemas.js";
 import { copyDir, ensureEmpty, pathExists } from "./fs.js";
 import { processTreePlaceholders } from "./placeholders.js";
-import { ghCreateRepo, gitInitAndCommit, hasGh, hasGit } from "./git.js";
-import { repoRoot } from "./utils.js";
+import { buildSaasProjectConfig, writeSaasConfig, type ScaffoldedTemplate } from "./saas-config.js";
+import { writeAgentRules } from "./agent-rules.js";
 
 const execFileAsync = promisify(execFile);
+
+/** Where templates and infra live on disk. The CLI passes the bundled paths;
+ *  a web service or test harness can pass a different root. */
+export interface ScaffoldOptions {
+  templatesRoot: string;
+  infraRoot: string;
+  /** Recorded in `saas.config.json`; defaults to "0.0.0" if unknown. */
+  cliVersion?: string;
+  /** Optional progress hook so callers (CLI, web UI) can render their own UX. */
+  onEvent?: (event: ScaffoldEvent) => void;
+}
+
+export type ScaffoldEvent =
+  | { kind: "plan"; apps: number }
+  | { kind: "app-start"; displayName: string; folder: string }
+  | { kind: "app-skipped-flutter"; folder: string; reason: string }
+  | { kind: "infra"; folder: string }
+  | { kind: "agent-rules"; files: string[] }
+  | { kind: "saas-config"; file: string }
+  | { kind: "warning"; message: string };
+
+export interface ScaffoldResult {
+  destDir: string;
+  /** Absolute paths of every directory created (apps + infra). */
+  createdDirs: string[];
+  scaffolded: ScaffoldedTemplate[];
+  saasConfigPath: string;
+  agentRulesPaths: string[];
+}
+
+interface AppPlan {
+  templateDir: string;
+  meta: TemplateMeta;
+  destFolderName: string;
+}
 
 async function hasFlutter(): Promise<boolean> {
   try {
@@ -19,12 +53,6 @@ async function hasFlutter(): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-interface AppPlan {
-  templateDir: string;
-  meta: TemplateMeta;
-  destFolderName: string;
 }
 
 export async function loadTemplateMeta(templateDir: string): Promise<TemplateMeta> {
@@ -46,8 +74,7 @@ export async function loadTemplateMeta(templateDir: string): Promise<TemplateMet
   return result.data;
 }
 
-async function planApps(cfg: ScaffoldConfig): Promise<AppPlan[]> {
-  const templatesRoot = path.join(repoRoot(), "templates");
+async function planApps(cfg: ScaffoldConfig, templatesRoot: string, emit: (e: ScaffoldEvent) => void): Promise<AppPlan[]> {
   const wanted: Array<{ template: string; suffix: string }> = [];
 
   if (cfg.backend === "fastapi") wanted.push({ template: "backend-fastapi", suffix: "backend" });
@@ -61,7 +88,7 @@ async function planApps(cfg: ScaffoldConfig): Promise<AppPlan[]> {
   for (const w of wanted) {
     const dir = path.join(templatesRoot, w.template);
     if (!(await pathExists(dir))) {
-      console.warn(pc.yellow(`  ! Template not found: ${w.template} — skipping`));
+      emit({ kind: "warning", message: `Template not found: ${w.template} — skipping` });
       continue;
     }
     const meta = await loadTemplateMeta(dir);
@@ -90,8 +117,8 @@ async function copyOverlay(templateDir: string, destDir: string, dataStack: "sup
   }
 }
 
-async function copyInfra(cfg: ScaffoldConfig, destRoot: string): Promise<string | null> {
-  const infraSrc = path.join(repoRoot(), "infra", cfg.dataStack);
+async function copyInfra(cfg: ScaffoldConfig, infraRoot: string, destRoot: string): Promise<string | null> {
+  const infraSrc = path.join(infraRoot, cfg.dataStack);
   if (!(await pathExists(infraSrc))) return null;
   const dest = path.join(destRoot, `${cfg.projectKebab}-infra`);
   await copyDir(infraSrc, dest);
@@ -99,29 +126,30 @@ async function copyInfra(cfg: ScaffoldConfig, destRoot: string): Promise<string 
   return dest;
 }
 
-export async function scaffold(cfg: ScaffoldConfig): Promise<void> {
-  console.log(pc.bold("\nScaffolding ") + pc.cyan(cfg.projectName) + pc.gray(`  →  ${cfg.destDir}`));
-  console.log(pc.gray(`  data stack: ${cfg.dataStack}`));
+/**
+ * The single entry point. CLI, web UI, and any future SDK call this. No
+ * prompting, no telemetry, no git/gh — those are CLI concerns layered on top.
+ */
+export async function scaffold(cfg: ScaffoldConfig, options: ScaffoldOptions): Promise<ScaffoldResult> {
+  const emit = options.onEvent ?? (() => {});
 
   await ensureEmpty(cfg.destDir);
 
-  const plans = await planApps(cfg);
+  const plans = await planApps(cfg, options.templatesRoot, emit);
   if (plans.length === 0) throw new Error("No apps selected — nothing to do.");
+  emit({ kind: "plan", apps: plans.length });
 
   const createdDirs: string[] = [];
+  const scaffolded: ScaffoldedTemplate[] = [];
 
-  // Per-app scaffold
   const flutterAvailable = await hasFlutter();
   for (const plan of plans) {
     const dest = path.join(cfg.destDir, plan.destFolderName);
-    console.log(pc.dim(`  • ${plan.meta.displayName}  →  ${plan.destFolderName}`));
+    emit({ kind: "app-start", displayName: plan.meta.displayName, folder: plan.destFolderName });
     await fs.mkdir(dest, { recursive: true });
 
-    // For Flutter apps, bootstrap with `flutter create` first so platform
-    // folders (android/, ios/, etc.) are generated, then overlay our templates.
     if (plan.meta.language === "dart") {
       if (flutterAvailable) {
-        console.log(pc.dim("    running flutter create…"));
         const org = cfg.bundleId.split(".").slice(0, -1).join(".");
         try {
           await execFileAsync(
@@ -130,62 +158,35 @@ export async function scaffold(cfg: ScaffoldConfig): Promise<void> {
             { cwd: dest, shell: true }
           );
         } catch (err) {
-          console.warn(pc.yellow(`    ! flutter create failed: ${(err as Error).message.split("\n")[0]}`));
+          emit({ kind: "warning", message: `flutter create failed: ${(err as Error).message.split("\n")[0]}` });
         }
       } else {
-        console.warn(pc.yellow("    ! flutter not found on PATH — skipping flutter create (run it manually)"));
+        emit({ kind: "app-skipped-flutter", folder: plan.destFolderName, reason: "flutter not on PATH" });
       }
     }
 
     await copyOverlay(plan.templateDir, dest, cfg.dataStack);
     await processTreePlaceholders(dest, cfg);
     createdDirs.push(dest);
+    scaffolded.push({ meta: plan.meta, destFolderName: plan.destFolderName });
   }
 
-  // Infra
   if (cfg.includeInfra) {
-    const infraDir = await copyInfra(cfg, cfg.destDir);
+    const infraDir = await copyInfra(cfg, options.infraRoot, cfg.destDir);
     if (infraDir) {
-      console.log(pc.dim(`  • Infra (${cfg.dataStack})  →  ${path.basename(infraDir)}`));
+      emit({ kind: "infra", folder: path.basename(infraDir) });
       createdDirs.push(infraDir);
     }
   }
 
-  // Git per subfolder
-  if (cfg.initGit) {
-    if (!(await hasGit())) {
-      console.warn(pc.yellow("  ! git not found on PATH — skipping git init"));
-    } else {
-      console.log(pc.dim("\n  Initializing git repos…"));
-      for (const dir of createdDirs) {
-        try {
-          await gitInitAndCommit(dir, "chore: initial scaffold");
-          console.log(pc.dim(`    ✓ ${path.basename(dir)}`));
-        } catch (err) {
-          console.warn(pc.yellow(`    ! git init failed for ${path.basename(dir)}: ${(err as Error).message.split("\n")[0]}`));
-        }
-      }
-    }
-  }
+  // saas.config.json — what every lifecycle command will read
+  const projectConfig = buildSaasProjectConfig(cfg, scaffolded, options.cliVersion ?? "0.0.0");
+  const saasConfigPath = await writeSaasConfig(cfg.destDir, projectConfig);
+  emit({ kind: "saas-config", file: path.basename(saasConfigPath) });
 
-  // GitHub repos
-  if (cfg.createGithubRepos) {
-    if (!(await hasGh())) {
-      console.warn(pc.yellow("  ! gh CLI not found — skipping remote repo creation"));
-    } else {
-      console.log(pc.dim("\n  Creating GitHub repos…"));
-      for (const dir of createdDirs) {
-        const url = await ghCreateRepo(dir, path.basename(dir), cfg.githubVisibility, cfg.description);
-        if (url) console.log(pc.dim(`    ✓ ${path.basename(dir)}  ${url}`));
-      }
-    }
-  }
+  // CLAUDE.md / agents.md / .cursorrules
+  const agentRulesPaths = await writeAgentRules(cfg.destDir, cfg, scaffolded);
+  emit({ kind: "agent-rules", files: agentRulesPaths.map((p) => path.basename(p)) });
 
-  console.log("");
-  console.log(pc.green(pc.bold("Done.")) + " Next steps:");
-  console.log(pc.gray(`  cd ${path.basename(cfg.destDir)}`));
-  for (const dir of createdDirs) {
-    console.log(pc.gray(`  • ${path.basename(dir)} — see its README for setup`));
-  }
-  console.log("");
+  return { destDir: cfg.destDir, createdDirs, scaffolded, saasConfigPath, agentRulesPaths };
 }

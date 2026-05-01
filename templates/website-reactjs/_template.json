@@ -3,6 +3,10 @@
   "role": "website",
   "displayName": "React + Vite Website",
   "language": "typescript",
-  "supports": ["supabase", "firebase"],
-  "folderSuffix": "website"
+  "supports": [
+    "supabase",
+    "firebase"
+  ],
+  "folderSuffix": "website",
+  "version": "1.0.0"
 }

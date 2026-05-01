@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { applyReplacements, buildReplacements, processTreePlaceholders } from "../src/placeholders.js";
+import { applyReplacements, buildReplacements, processTreePlaceholders } from "../src/core/placeholders.js";
 import type { ScaffoldConfig } from "../src/types.js";
 
 function fakeConfig(overrides: Partial<ScaffoldConfig> = {}): ScaffoldConfig {

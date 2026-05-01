@@ -3,6 +3,10 @@
   "role": "backend",
   "displayName": "Next.js API Routes Backend",
   "language": "typescript",
-  "supports": ["supabase", "firebase"],
-  "folderSuffix": "backend"
+  "supports": [
+    "supabase",
+    "firebase"
+  ],
+  "folderSuffix": "backend",
+  "version": "1.0.0"
 }
