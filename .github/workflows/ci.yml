@@ -10,12 +10,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Opt every Node-20 JavaScript action into the Node-24 runtime so the
-# 2026-09 Node-20 removal doesn't break CI. Safe to leave on indefinitely;
-# remove once every action we use has shipped a Node-24-native release.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   verify:
     name: verify (${{ matrix.os }})
@@ -27,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4.1.0
+      - uses: pnpm/action-setup@v6.0.4
         with:
           version: 9.15.0
 
@@ -61,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4.1.0
+      - uses: pnpm/action-setup@v6.0.4
         with:
           version: 9.15.0
 
