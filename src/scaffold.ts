@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import pc from "picocolors";
 import { ScaffoldConfig, TemplateMeta } from "./types.js";
+import { TemplateMetaSchema } from "./schemas.js";
 import { copyDir, ensureEmpty, pathExists } from "./fs.js";
 import { processTreePlaceholders } from "./placeholders.js";
 import { ghCreateRepo, gitInitAndCommit, hasGh, hasGit } from "./git.js";
@@ -26,10 +27,23 @@ interface AppPlan {
   destFolderName: string;
 }
 
-async function loadTemplateMeta(templateDir: string): Promise<TemplateMeta> {
+export async function loadTemplateMeta(templateDir: string): Promise<TemplateMeta> {
   const metaPath = path.join(templateDir, "_template.json");
   const raw = await fs.readFile(metaPath, "utf8");
-  return JSON.parse(raw) as TemplateMeta;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Invalid JSON in ${metaPath}: ${(err as Error).message}`);
+  }
+  const result = TemplateMetaSchema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((i) => `  • ${i.path.join(".") || "<root>"}: ${i.message}`)
+      .join("\n");
+    throw new Error(`Invalid template metadata in ${metaPath}:\n${issues}`);
+  }
+  return result.data;
 }
 
 async function planApps(cfg: ScaffoldConfig): Promise<AppPlan[]> {

@@ -76,6 +76,28 @@ The CLI walks you through:
 
 When it finishes you'll see one README path per app — open them in order, fill in env vars, and you're running.
 
+### Other commands
+
+```bash
+pnpm doctor                 # check your toolchain (node / pnpm / git / gh / python / flutter)
+pnpm dev --version          # print CLI version
+pnpm dev --help             # print CLI help
+pnpm test                   # run the test suite (vitest)
+pnpm validate:templates     # verify every template's _template.json
+```
+
+### Telemetry & crash reporting
+
+Both are **off by default**. Enable opt-in with environment variables:
+
+| Variable | Effect |
+|---|---|
+| `CREATE_SAAS_TELEMETRY=1` | anonymous PostHog events (stack picks, success/failure) |
+| `CREATE_SAAS_POSTHOG_KEY=<key>` | required alongside the toggle to actually send |
+| `CREATE_SAAS_SENTRY_DSN=<dsn>` | crash reporting via Sentry |
+
+We never capture project names, file paths, env values, or user identity.
+
 ---
 
 ## What's pre-wired in every variant

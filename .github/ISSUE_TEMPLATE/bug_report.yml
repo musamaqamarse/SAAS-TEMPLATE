@@ -1,0 +1,71 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please run `create-saas doctor` and paste the output below — it captures the toolchain state we usually need to reproduce.
+
+  - type: input
+    id: cli_version
+    attributes:
+      label: create-saas version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `create-saas doctor`
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      placeholder: e.g. pnpm dev my-app
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Include the full error message and stack trace (set DEBUG=1 to see the stack).
+    validations:
+      required: true
+
+  - type: textarea
+    id: stack_picks
+    attributes:
+      label: Stack picks (if scaffolding)
+      placeholder: |
+        dataStack: supabase
+        backend: fastapi
+        website: nextjs
+        adminPanel: yes
+        mobile: yes

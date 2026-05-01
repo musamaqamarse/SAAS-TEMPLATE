@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "group:allNonMajor"
+  ],
+  "rangeStrategy": "bump",
+  "schedule": ["before 7am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group all template-internal Next.js / React / Tailwind bumps so reviews stay manageable",
+      "matchFileNames": ["templates/**"],
+      "groupName": "templates"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": false
+  }
+}

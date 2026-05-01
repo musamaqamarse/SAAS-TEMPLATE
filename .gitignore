@@ -24,6 +24,9 @@ Thumbs.db
 /test-fresh/
 /_out/
 
+# Local planning notes
+/local_docs/
+
 # Safety net — never commit these even if someone tests locally inside the repo
 **/service-account.json
 **/GoogleService-Info.plist
