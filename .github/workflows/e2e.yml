@@ -34,8 +34,22 @@ jobs:
       - name: Build apps/web
         run: pnpm --filter @create-saas/web run build
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('e2e/package.json') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @create-saas/e2e exec playwright install --with-deps chromium
+        timeout-minutes: 10
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @create-saas/e2e exec playwright install-deps chromium
+        timeout-minutes: 5
 
       - name: Playwright tests
         run: pnpm --filter @create-saas/e2e run test:run
