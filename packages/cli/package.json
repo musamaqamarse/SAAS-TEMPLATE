@@ -1,6 +1,6 @@
 {
   "name": "create-saas",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SaaS scaffolding engine: spin up backend + website + admin + mobile starters wired to Supabase or Firebase.",
   "type": "module",
   "bin": {
