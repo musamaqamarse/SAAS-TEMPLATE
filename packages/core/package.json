@@ -1,6 +1,6 @@
 {
   "name": "@create-saas/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Headless scaffolding engine behind the create-saas CLI and web UI.",
   "type": "module",
   "main": "./dist/index.js",
