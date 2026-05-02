@@ -1,0 +1,48 @@
+# ScaffoldConfig
+
+The single typed config every consumer of `@create-saas/core` builds. The CLI's prompts produce one. The web configurator produces one. Plugins will produce one.
+
+The schema lives in [packages/core/src/schemas.ts](https://github.com/usama-qamar/create-saas/blob/main/packages/core/src/schemas.ts) and is the wire format between the boundary (CLI / HTTP / SDK) and the engine.
+
+## Shape
+
+```ts
+interface ScaffoldConfig {
+  // Identity (CLI/web derives these from the project name)
+  projectName: string;          // "My Cool App"
+  projectKebab: string;         // "my-cool-app"
+  projectSnake: string;         // "my_cool_app"
+  projectPascal: string;        // "MyCoolApp"
+  bundleId: string;             // "com.acme.mycoolapp"  — regex: /^[a-z][a-z0-9.]*\.[a-z][a-z0-9]*$/
+  description: string;
+
+  // Composition
+  dataStack: "supabase" | "firebase";
+  backend:    "fastapi" | "nextjs-api" | "none";
+  website:    "nextjs" | "reactjs" | "none";
+  adminPanel: "nextjs" | "none";
+  mobile:     "flutter" | "none";
+  includeInfra: boolean;
+
+  // Scaffolding-time intent (CLI-only — engine ignores)
+  destDir: string;              // absolute path; web wraps with a temp dir
+  initGit: boolean;             // CLI runs `git init` per subfolder
+  createGithubRepos: boolean;   // CLI uses `gh` CLI
+  githubVisibility: "private" | "public";
+}
+```
+
+## Web variant
+
+The web UI's `WebScaffoldConfig` is `ScaffoldConfig` minus the four CLI-only intent fields (`destDir`, `initGit`, `createGithubRepos`, `githubVisibility`). The engine ignores those; the web omits them entirely so the wire shape stays minimal. See [apps/web/lib/scaffold-runner.ts](https://github.com/usama-qamar/create-saas/blob/main/apps/web/lib/scaffold-runner.ts).
+
+## Validation
+
+Every consumer validates at the boundary with the Zod schema before calling `scaffold()`. The engine assumes its input is already valid and dies loudly otherwise — there's no second validation pass inside.
+
+```ts
+import { ScaffoldConfigSchema } from "@create-saas/core";
+
+const config = ScaffoldConfigSchema.parse(rawInput);
+const result = await scaffold(config, { templatesRoot, infraRoot });
+```

@@ -32,17 +32,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm lint
+      - name: Build packages (core + cli)
+        run: pnpm -r --filter "./packages/*" run build
+
+      - name: Typecheck packages
+        run: pnpm -r --filter "./packages/*" run lint
 
       - name: Validate templates
         run: pnpm validate:templates
 
-      - name: Tests
-        run: pnpm test:run
+      - name: Build apps (web/docs/marketing — also typechecks)
+        run: pnpm -r --filter "./apps/*" run build
 
-      - name: Build
-        run: pnpm build
+      - name: Tests (unit; Playwright runs in e2e workflow)
+        run: pnpm -r --filter "!@create-saas/e2e" run test:run
 
   release:
     name: release

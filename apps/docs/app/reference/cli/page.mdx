@@ -1,0 +1,44 @@
+# CLI flag reference
+
+The CLI accepts a positional project name and any of the flags below. With `--yes` plus a project name (or `--config <file>`), it runs fully non-interactive — handy for CI and AI agents.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `create-saas [project-name]` | Interactive scaffold (default) |
+| `create-saas doctor` | Toolchain check (Node, pnpm, git, gh, python, flutter) |
+| `create-saas --version` | Print version |
+| `create-saas --help` | Print help |
+
+## Flags
+
+| Flag | Values | Default | Notes |
+|---|---|---|---|
+| `--name <text>` | string | — | Same as the positional argument |
+| `--description <text>` | string | "A new SaaS project" | Goes into READMEs and metadata |
+| `--data-stack <id>` | `supabase` \| `firebase` | `supabase` | Drives both client SDKs and the infra layout |
+| `--backend <id>` | `fastapi` \| `nextjs-api` \| `none` | `fastapi` | Pick `none` to talk to the data stack directly from clients |
+| `--website <id>` | `nextjs` \| `reactjs` \| `none` | `nextjs` | App Router or Vite SPA |
+| `--admin <id>` | `nextjs` \| `none` | `nextjs` | Separate Next.js app, port 3001 |
+| `--mobile <id>` | `flutter` \| `none` | `none` | Flutter app with FCM, auth, routing |
+| `--bundle-vendor <com.x>` | string | `com.example` | Mobile bundle id prefix; final id is `<vendor>.<projectKebab>` |
+| `--out <dir>` | path | `./<projectKebab>` | Destination directory |
+| `--no-infra` | — | included | Skip the infra/ folder |
+| `--no-git` | — | included | Skip per-subfolder `git init` |
+| `--create-github-repos` | — | off | Use `gh` CLI to create + push per-app repos |
+| `--public` | — | private | GitHub repo visibility (with `--create-github-repos`) |
+| `--config <path>` | path | — | Load a JSON `ScaffoldConfig` (overrides other flags) |
+| `--yes`, `-y` | — | off | Accept all defaults; required to skip prompts |
+
+## Telemetry
+
+Off by default. Opt in with environment variables:
+
+| Variable | Effect |
+|---|---|
+| `CREATE_SAAS_TELEMETRY=1` | Anonymous PostHog events (stack picks, success/failure) |
+| `CREATE_SAAS_POSTHOG_KEY=<key>` | Required alongside the toggle to actually send |
+| `CREATE_SAAS_SENTRY_DSN=<dsn>` | Crash reporting via Sentry |
+
+The web UI uses the same env-var contract; events are tagged `source: "web"` so they don't pollute CLI signal.

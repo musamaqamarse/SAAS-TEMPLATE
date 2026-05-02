@@ -1,0 +1,41 @@
+# saas.config.json
+
+Written into every scaffolded project root. This is the contract that future lifecycle commands (`update`, `add`, `remove`) read to know what the project actually is.
+
+## Shape
+
+```json
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-05-02T10:00:00.000Z",
+  "cliVersion": "0.2.0",
+  "project": {
+    "name": "My Cool App",
+    "kebab": "my-cool-app",
+    "snake": "my_cool_app",
+    "pascal": "MyCoolApp",
+    "bundleId": "com.acme.mycoolapp",
+    "description": "A new SaaS project"
+  },
+  "composition": {
+    "dataStack": "supabase",
+    "backend": "fastapi",
+    "website": "nextjs",
+    "adminPanel": "nextjs",
+    "mobile": "flutter",
+    "includeInfra": true
+  },
+  "templates": [
+    { "name": "backend-fastapi",   "role": "backend",    "version": "1.0.0", "folder": "my-cool-app-backend" },
+    { "name": "website-nextjs",    "role": "website",    "version": "1.0.0", "folder": "my-cool-app-website" },
+    { "name": "adminpanel-nextjs", "role": "adminpanel", "version": "1.0.0", "folder": "my-cool-app-adminpanel" },
+    { "name": "mobileapp-flutter", "role": "mobileapp",  "version": "1.0.0", "folder": "my-cool-app-mobileapp" }
+  ]
+}
+```
+
+## Notes
+
+- **Don't edit by hand.** It's a record of how the scaffold was generated. Future `create-saas update` reads it to know which template version each app started from and computes the migration path forward.
+- **Scaffolding-time intent is intentionally absent.** `initGit`, `createGithubRepos`, `githubVisibility`, `destDir` describe the *act* of creation, not the project — they're only on `ScaffoldConfig`, never persisted.
+- **`schemaVersion` will be bumped** if the shape changes. Old projects keep working; lifecycle commands handle migrations.

@@ -1,42 +1,30 @@
 {
-  "name": "create-saas",
-  "version": "0.2.0",
+  "name": "create-saas-workspace",
+  "version": "0.0.0",
   "private": true,
-  "description": "SaaS scaffolding engine: spin up backend + website + admin + mobile starters wired to Supabase or Firebase.",
+  "description": "Workspace root for create-saas: the headless engine, the CLI, and the web UI.",
   "type": "module",
-  "bin": {
-    "create-saas": "./dist/index.js"
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
-    "create": "tsx src/index.ts",
-    "doctor": "tsx src/index.ts doctor",
-    "lint": "tsc -p tsconfig.lint.json",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "build:all": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "test:run": "pnpm -r run test:run",
     "validate:templates": "tsx scripts/validate-templates.ts",
+    "prerender:flutter": "tsx scripts/prerender-flutter.ts",
+    "clean": "pnpm -r run clean",
+    "dev": "pnpm --filter create-saas run dev",
+    "doctor": "pnpm --filter create-saas run doctor",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
-  },
-  "dependencies": {
-    "picocolors": "^1.1.1",
-    "prompts": "^2.4.2",
-    "zod": "^3.24.1"
-  },
-  "optionalDependencies": {
-    "@sentry/node": "^8.47.0",
-    "posthog-node": "^4.4.1"
+    "release": "pnpm -r --filter \"./packages/*\" run build && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
+    "@create-saas/core": "workspace:*",
     "@types/node": "^22.10.5",
-    "@types/prompts": "^2.4.9",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
+    "typescript": "^5.7.3"
   },
   "engines": {
     "node": ">=20"

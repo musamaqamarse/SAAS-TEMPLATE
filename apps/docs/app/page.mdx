@@ -1,0 +1,26 @@
+# create-saas
+
+A scaffolding engine for SaaS projects. Pick your apps, pick Supabase or Firebase, run one command, and walk away with a working multi-app project where every piece is independently deployable.
+
+## What's here
+
+This site is the reference for both the CLI (`create-saas`) and the headless engine (`@create-saas/core`).
+
+- [Quickstart](/quickstart) — go from zero to a running scaffold
+- [CLI flag reference](/reference/cli) — every flag, what it does, and its default
+- [ScaffoldConfig schema](/reference/scaffold-config) — the typed config every consumer (CLI, web UI, plugin) builds
+- [saas.config.json](/reference/saas-config) — the file written into every scaffold; the contract for `update`, `add`, and `remove`
+
+## Two surfaces, one engine
+
+```
+@create-saas/core      headless scaffolding engine — call from anywhere
+└── create-saas        the interactive CLI
+└── @create-saas/web   the web UI under apps/web/ (Phase 2)
+```
+
+The engine is HTTP-handler safe: pure I/O + events, no prompts, no git, no telemetry, no stdout. Every consumer produces a `ScaffoldConfig` and calls one function.
+
+## Status
+
+Phase 2 of the [public roadmap](https://github.com/usama-qamar/create-saas) just landed: the configurator, anonymous ZIP download, shareable URLs, and the stack recommender are live. Phase 3 (the `update` / `add` / `remove` lifecycle commands) is next.

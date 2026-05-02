@@ -6,21 +6,21 @@ End-to-end walkthrough of scaffolding, customizing, and extending.
 
 ```bash
 pnpm install
-pnpm build
+pnpm build               # builds @create-saas/core and create-saas (dist/ per package)
 ```
 
-This compiles the CLI to `dist/`. From then on you can run it via:
+From then on you can run it via:
 
 ```bash
-pnpm create my-cool-app    # uses tsx — runs from src/, no rebuild needed
+pnpm create my-cool-app  # uses tsx — runs from packages/cli/src/, no rebuild needed
 # OR after `pnpm build`:
-node dist/index.js my-cool-app
+node packages/cli/dist/index.js my-cool-app
 ```
 
 If you want it on your `PATH` system-wide:
 
 ```bash
-pnpm link --global         # exposes `create-saas` globally
+pnpm --filter create-saas link --global  # exposes `create-saas` globally
 create-saas my-cool-app
 ```
 

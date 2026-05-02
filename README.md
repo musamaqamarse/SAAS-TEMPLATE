@@ -210,30 +210,41 @@ pnpm dev test-app
 
 ## How it works
 
+This is a pnpm workspace. Two packages, plus the shared `templates/` and `infra/` they consume.
+
 ```
 .
-├── src/
-│   ├── core/            Headless engine (the @create-saas/core surface)
-│   │   ├── scaffold.ts    scaffold(config, options) — single entry point
-│   │   ├── schemas.ts     Zod schemas for ScaffoldConfig / TemplateMeta / SaasProjectConfig
-│   │   ├── placeholders.ts  Substitutes __PROJECT_NAME__ etc. in files + filenames
-│   │   ├── saas-config.ts   Writes saas.config.json into every scaffold
-│   │   └── agent-rules.ts   Writes CLAUDE.md / agents.md / .cursorrules per stack
-│   ├── index.ts         CLI entry — thin layer over core
-│   ├── prompts.ts       Interactive prompts (build a ScaffoldConfig)
-│   ├── flags.ts         Argv parser for non-interactive mode
-│   ├── git.ts           Per-folder git init + gh repo create
-│   └── ...
-├── templates/           Per-app templates
+├── packages/
+│   ├── core/                    @create-saas/core — the headless engine
+│   │   └── src/
+│   │       ├── scaffold.ts        scaffold(config, options) — single entry point
+│   │       ├── schemas.ts         Zod schemas (ScaffoldConfig / TemplateMeta / SaasProjectConfig)
+│   │       ├── placeholders.ts    Substitutes __PROJECT_NAME__ etc. in files + filenames
+│   │       ├── saas-config.ts     Writes saas.config.json into every scaffold
+│   │       └── agent-rules.ts     Writes CLAUDE.md / agents.md / .cursorrules per stack
+│   └── cli/                     create-saas — interactive layer over @create-saas/core
+│       └── src/
+│           ├── index.ts           CLI entry (`bin: create-saas`)
+│           ├── prompts.ts         Interactive prompts (build a ScaffoldConfig)
+│           ├── flags.ts           Argv parser for non-interactive mode
+│           ├── doctor.ts          `create-saas doctor` toolchain check
+│           ├── git.ts             Per-folder git init + gh repo create
+│           └── telemetry.ts       Opt-in PostHog / Sentry
+├── templates/                   Per-app templates
 │   ├── backend-fastapi/
 │   ├── backend-nextjs-api/
 │   ├── website-nextjs/
 │   ├── website-reactjs/
 │   ├── adminpanel-nextjs/
-│   └── mobileapp-flutter/
-├── infra/               Supabase + Firebase IaC starters
-└── docs/USAGE.md        End-to-end walkthrough
+│   └── mobileapp-flutter/         (ships a prerendered shell — no Flutter SDK needed at scaffold time)
+├── infra/                       Supabase + Firebase IaC starters
+├── scripts/
+│   ├── validate-templates.ts      CI check for every _template.json
+│   └── prerender-flutter.ts       Regenerates the Flutter shell on SDK bumps
+└── docs/USAGE.md                End-to-end walkthrough
 ```
+
+The engine package (`@create-saas/core`) is HTTP-handler safe: pure I/O + events, no prompts, no git, no telemetry, no stdout. The CLI is the only consumer today. The web UI under `apps/web/` (Phase 2) calls the same `scaffold(config, options)` function.
 
 ### Template overlay system
 
@@ -280,17 +291,19 @@ Forking this repo is the intended path — the CLI is small (~500 lines of TypeS
 
 The CLI auto-discovers templates — no registration step.
 
-**Swap a default:** the prompts live in `src/prompts.ts` — edit the `initial` values to change defaults.
+**Swap a default:** the prompts live in `packages/cli/src/prompts.ts` — edit the `initial` values to change defaults.
 
-**Add a new placeholder:** edit `src/core/placeholders.ts:buildReplacements()`.
+**Add a new placeholder:** edit `packages/core/src/placeholders.ts:buildReplacements()`.
+
+**Regenerate the Flutter prerendered shell:** `pnpm prerender:flutter` (requires the Flutter SDK; review the diff before committing).
 
 ---
 
 ## Requirements
 
 - **Node.js 20+** (CLI runtime)
-- **pnpm** (or npm — the scripts work either way)
-- **Flutter 3.24+** if scaffolding mobile (the CLI calls `flutter create` to generate native folders)
+- **pnpm 9.15+** (the workspace expects pnpm)
+- **Flutter 3.24+** is **optional** — the Flutter template ships a prerendered shell, so scaffolds work without the SDK. Install it before running the generated app or to use the live `flutter create` path on a fresh template
 - **Firebase CLI** signed in if you want auto SHA-1 registration / web app creation
 - **GitHub CLI** (`gh`) signed in if you want auto repo creation
 - **FlutterFire CLI** (`dart pub global activate flutterfire_cli`) for mobile Firebase setup

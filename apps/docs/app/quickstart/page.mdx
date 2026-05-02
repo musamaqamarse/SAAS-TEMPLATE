@@ -1,0 +1,44 @@
+# Quickstart
+
+Three minutes from zero to a running scaffold.
+
+## Option A — the web
+
+1. Open the configurator (or the recommender, if you want a head start).
+2. Type a project name. Tweak the stack picks if needed.
+3. Hit **Download .zip**.
+4. Unzip, `cd` into the project, follow each subfolder's `README.md`.
+
+No accounts, no signup, no GitHub OAuth. The ZIP is your scaffold.
+
+## Option B — the CLI
+
+```bash
+npx create-saas my-cool-app
+# walks you through prompts; same result as the web
+```
+
+Or non-interactive:
+
+```bash
+npx create-saas my-cool-app --yes \
+  --data-stack supabase --backend fastapi --website nextjs \
+  --admin nextjs --mobile flutter --bundle-vendor com.acme
+```
+
+The CLI also has the `--create-github-repos` flag (uses `gh` CLI to create + push per-app repos) — currently CLI-only.
+
+## What you get
+
+A project root containing one folder per app, plus `saas.config.json`, `CLAUDE.md`, `agents.md`, and `.cursorrules`:
+
+```
+my-cool-app/
+├── my-cool-app-backend/      FastAPI or Next.js API
+├── my-cool-app-website/      Next.js or React + Vite
+├── my-cool-app-adminpanel/   Next.js admin shell (optional)
+├── my-cool-app-mobileapp/    Flutter app (optional, prerendered shell)
+└── my-cool-app-infra/        Supabase or Firebase IaC starter
+```
+
+Every subfolder is independently deployable and has its own README with stack-specific setup steps.

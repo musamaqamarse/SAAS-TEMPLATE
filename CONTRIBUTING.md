@@ -27,37 +27,44 @@ Optional, only needed if you touch the matching templates:
 
 ## Project layout
 
+This is a pnpm workspace.
+
 ```
-src/                 CLI source (TypeScript)
+packages/
+  core/              @create-saas/core — the headless engine (no prompts/git/telemetry)
+  cli/               create-saas — interactive CLI on top of core
 templates/           Per-stack scaffolding templates (overlay model)
 infra/               Supabase / Firebase infra starters
-scripts/             Maintenance scripts (validate-templates, etc.)
-tests/               Vitest unit + e2e tests
+scripts/             Maintenance scripts (validate-templates, prerender-flutter)
 local_docs/          Personal planning notes (gitignored)
 ```
+
+Tests live in each package (`packages/<name>/tests/`). Per-package commands work from anywhere via `pnpm --filter <name>` or `pnpm -r run <script>` for all packages.
 
 ## How to add a new template
 
 1. Create `templates/<role>-<name>/` with the standard layout:
    ```
-   _template.json     metadata (validated by Zod schema in src/schemas.ts)
+   _template.json     metadata (validated by Zod schema in packages/core/src/schemas.ts)
    _common/           files shared by every variant
    _supabase/         Supabase-specific overrides (if applicable)
    _firebase/         Firebase-specific overrides (if applicable)
+   _prerendered/      OPTIONAL — pre-built starter; set `prerendered: true` in _template.json
    ```
 2. The `_template.json` must declare `name`, `role`, `displayName`, `language`, `supports[]`, `folderSuffix`. Run `pnpm validate:templates` to confirm.
-3. Wire the new template into `planApps()` in `src/scaffold.ts`.
-4. Add it to the relevant prompt in `src/prompts.ts`.
-5. Add at least one e2e test combination in `tests/scaffold.e2e.test.ts`.
+3. Wire the new template into `planApps()` in `packages/core/src/scaffold.ts`.
+4. Add it to the relevant prompt in `packages/cli/src/prompts.ts`.
+5. Add at least one e2e test combination in `packages/core/tests/scaffold.e2e.test.ts`.
 6. Add a changeset (`pnpm changeset`) describing the addition.
 
 ## Pull request checklist
 
-- [ ] `pnpm lint` passes (typecheck)
-- [ ] `pnpm test:run` passes
+- [ ] `pnpm -r --filter "./packages/*" run build` succeeds
+- [ ] `pnpm -r run lint` passes (typecheck)
+- [ ] `pnpm -r run test:run` passes
 - [ ] `pnpm validate:templates` passes
 - [ ] If user-visible: a changeset is included (`pnpm changeset`)
-- [ ] If a new placeholder token is used in templates: it is registered in `src/placeholders.ts`
+- [ ] If a new placeholder token is used in templates: it is registered in `packages/core/src/placeholders.ts`
 
 ## Telemetry
 
