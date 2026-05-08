@@ -1,0 +1,7 @@
+{
+  "unit": "page",
+  "description": "Next.js App Router page at /{name_kebab}.",
+  "files": [
+    { "from": "page.tsx.tmpl", "to": "app/{name_kebab}/page.tsx" }
+  ]
+}

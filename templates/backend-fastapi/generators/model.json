@@ -1,0 +1,7 @@
+{
+  "unit": "model",
+  "description": "Pydantic model + DB row dataclass for one entity.",
+  "files": [
+    { "from": "model.py.tmpl", "to": "app/models/{name_snake}.py" }
+  ]
+}

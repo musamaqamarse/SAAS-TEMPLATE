@@ -1,6 +1,20 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ScaffoldConfig } from "./schemas.js";
+
+/**
+ * The minimum shape needed to substitute placeholder tokens. ScaffoldConfig
+ * satisfies this structurally, but lifecycle commands like `add` only need
+ * identity fields (no destDir/initGit/etc), so we type the public surface
+ * narrowly.
+ */
+export interface PlaceholderInput {
+  projectName: string;
+  projectKebab: string;
+  projectSnake: string;
+  projectPascal: string;
+  bundleId: string;
+  description: string;
+}
 
 const TEXT_EXTENSIONS = new Set([
   ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".mdx",
@@ -35,7 +49,7 @@ function isLikelyText(filePath: string): boolean {
   return false;
 }
 
-export function buildReplacements(cfg: ScaffoldConfig): Array<[RegExp, string]> {
+export function buildReplacements(cfg: PlaceholderInput): Array<[RegExp, string]> {
   return [
     [/__PROJECT_NAME__/g, cfg.projectName],
     [/__PROJECT_KEBAB__/g, cfg.projectKebab],
@@ -55,7 +69,7 @@ export function applyReplacements(input: string, replacements: Array<[RegExp, st
 }
 
 /** Walk a directory and apply placeholder replacement to all text files AND filenames. */
-export async function processTreePlaceholders(root: string, cfg: ScaffoldConfig): Promise<void> {
+export async function processTreePlaceholders(root: string, cfg: PlaceholderInput): Promise<void> {
   const replacements = buildReplacements(cfg);
 
   async function walk(dir: string): Promise<void> {

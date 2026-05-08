@@ -1,0 +1,7 @@
+{
+  "unit": "page",
+  "description": "Next.js App Router page at /{name_kebab} inside the admin panel.",
+  "files": [
+    { "from": "page.tsx.tmpl", "to": "app/{name_kebab}/page.tsx" }
+  ]
+}

@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildSaasProjectConfig,
   writeSaasConfig,
+  loadSaasConfig,
+  updateSaasConfig,
   SaasProjectConfigSchema,
   type ScaffoldConfig,
   type TemplateMeta,
@@ -52,7 +54,7 @@ describe("buildSaasProjectConfig", () => {
       ],
       "0.5.0"
     );
-    expect(out.schemaVersion).toBe(1);
+    expect(out.schemaVersion).toBe(2);
     expect(out.cliVersion).toBe("0.5.0");
     expect(out.project.name).toBe("Acme");
     expect(out.project.bundleId).toBe("com.acme.app");
@@ -64,6 +66,7 @@ describe("buildSaasProjectConfig", () => {
       role: "backend",
       version: "1.2.3",
       folder: "acme-backend",
+      appliedMigrations: [],
     });
     // No initGit, createGithubRepos, githubVisibility, destDir leaked.
     expect(out).not.toHaveProperty("initGit");
@@ -106,5 +109,77 @@ describe("writeSaasConfig", () => {
     const parsed = JSON.parse(raw);
     expect(parsed.project.name).toBe("Acme");
     expect(parsed.templates[0].name).toBe("backend-fastapi");
+  });
+});
+
+describe("loadSaasConfig", () => {
+  let tmp: string;
+  beforeEach(async () => { tmp = await fs.mkdtemp(path.join(os.tmpdir(), "saascfg-load-")); });
+  afterEach(async () => { await fs.rm(tmp, { recursive: true, force: true }); });
+
+  it("round-trips a v2 config written by buildSaasProjectConfig", async () => {
+    const original = buildSaasProjectConfig(
+      fakeConfig(),
+      [{ meta: fakeMeta("backend-fastapi", "backend", "1.2.3"), destFolderName: "acme-backend" }],
+      "0.5.0"
+    );
+    await writeSaasConfig(tmp, original);
+    const loaded = await loadSaasConfig(tmp);
+    expect(loaded).toEqual(original);
+  });
+
+  it("normalizes a v1 file (missing appliedMigrations) into v2 in memory", async () => {
+    // Hand-write a v1-shaped file: schemaVersion=1, no appliedMigrations.
+    const v1 = {
+      schemaVersion: 1,
+      createdAt: "2024-01-01T00:00:00Z",
+      cliVersion: "0.4.0",
+      project: { name: "Acme", kebab: "acme", snake: "acme", pascal: "Acme",
+                 bundleId: "com.acme.app", description: "x" },
+      composition: { dataStack: "supabase", backend: "fastapi", website: "nextjs",
+                     adminPanel: "none", mobile: "none", includeInfra: true },
+      templates: [{ name: "backend-fastapi", role: "backend", version: "1.0.0", folder: "acme-backend" }],
+    };
+    await fs.writeFile(path.join(tmp, "saas.config.json"), JSON.stringify(v1), "utf8");
+    const loaded = await loadSaasConfig(tmp);
+    expect(loaded.schemaVersion).toBe(2);
+    expect(loaded.templates[0].appliedMigrations).toEqual([]);
+    expect(loaded.agentRulesHash).toBeUndefined();
+  });
+
+  it("throws a clear error when saas.config.json is missing", async () => {
+    await expect(loadSaasConfig(tmp)).rejects.toThrow(/No saas\.config\.json/);
+  });
+
+  it("throws a clear error when JSON is malformed", async () => {
+    await fs.writeFile(path.join(tmp, "saas.config.json"), "{ not json", "utf8");
+    await expect(loadSaasConfig(tmp)).rejects.toThrow(/Invalid JSON/);
+  });
+});
+
+describe("updateSaasConfig", () => {
+  let tmp: string;
+  beforeEach(async () => { tmp = await fs.mkdtemp(path.join(os.tmpdir(), "saascfg-upd-")); });
+  afterEach(async () => { await fs.rm(tmp, { recursive: true, force: true }); });
+
+  it("applies the mutator and persists the result", async () => {
+    const cfg = buildSaasProjectConfig(
+      fakeConfig(),
+      [{ meta: fakeMeta("backend-fastapi", "backend", "1.0.0"), destFolderName: "acme-backend" }],
+      "0.5.0"
+    );
+    await writeSaasConfig(tmp, cfg);
+
+    const updated = await updateSaasConfig(tmp, (draft) => {
+      draft.templates[0].appliedMigrations.push("1.0.0_to_1.1.0");
+      draft.templates[0].version = "1.1.0";
+    });
+    expect(updated.templates[0].version).toBe("1.1.0");
+    expect(updated.templates[0].appliedMigrations).toEqual(["1.0.0_to_1.1.0"]);
+
+    // Persisted to disk.
+    const reloaded = await loadSaasConfig(tmp);
+    expect(reloaded.templates[0].version).toBe("1.1.0");
+    expect(reloaded.templates[0].appliedMigrations).toEqual(["1.0.0_to_1.1.0"]);
   });
 });

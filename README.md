@@ -102,7 +102,23 @@ Or load a saved JSON `ScaffoldConfig`:
 pnpm dev --config ./my-config.json
 ```
 
-Every scaffolded project also gets a `saas.config.json` at its root — it records the composition, project identity, CLI version, and the exact template versions used. This is the contract that the upcoming `update`, `add`, and `remove` commands will read from.
+Every scaffolded project also gets a `saas.config.json` at its root — it records the composition, project identity, CLI version, the exact template versions used, and which migrations have been applied. This is the contract the lifecycle commands read from.
+
+### Lifecycle commands
+
+Inside an existing scaffolded project (cwd must contain `saas.config.json`):
+
+```bash
+pnpm dev update                       # apply pending template migrations (idempotent)
+pnpm dev update --dry-run             # preview the plan first
+pnpm dev add adminpanel               # bolt on a role
+pnpm dev add website --variant nextjs # required when a role has multiple variants
+pnpm dev remove mobileapp --yes       # remove a role; agent rules refreshed
+pnpm dev generate route users         # backend route stub
+pnpm dev generate component PriceTag --target my-app-website
+```
+
+`update` walks each template's recorded version → the current `_template.json` version, applying declarative migrations (`addFile`, `deleteFile`, `renameFile`, `patchJson`, `replaceText`). Conflicts surface as `*.update-conflict` companion files; the run is idempotent across reruns. Use `--strict` for CI semantics where any conflict fails the run.
 
 ### AI-tool ready
 

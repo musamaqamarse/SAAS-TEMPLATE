@@ -1,0 +1,7 @@
+{
+  "unit": "route",
+  "description": "FastAPI router module with one GET endpoint stub. Mount it from app/main.py.",
+  "files": [
+    { "from": "route.py.tmpl", "to": "app/routers/{name_snake}.py" }
+  ]
+}

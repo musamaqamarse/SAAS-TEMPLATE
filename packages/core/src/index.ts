@@ -20,3 +20,22 @@ export * from "./agent-rules.js";
 export { buildReplacements, applyReplacements, processTreePlaceholders } from "./placeholders.js";
 export { copyDir, ensureEmpty, pathExists } from "./fs.js";
 export { toKebab, toSnake, toPascal, toBundleId } from "./identifiers.js";
+
+// Phase 3 — lifecycle commands
+export { loadProject, type ProjectContext, type LoadProjectOptions } from "./lifecycle/project.js";
+export { removeApp, type Role, type RemoveOptions, type RemoveResult } from "./lifecycle/remove.js";
+export { addApp, VARIANTS_BY_ROLE, type AddOptions, type AddResult } from "./lifecycle/add.js";
+export { generateUnit, type GenerateOptions, type GenerateResult } from "./lifecycle/generate.js";
+export { GENERATOR_UNITS, type GeneratorUnit } from "./generators/schema.js";
+
+// Phase 3 — migrations (used by `update`)
+export { MigrationSchema, MigrationOpSchema, type Migration, type MigrationOp } from "./migrations/schema.js";
+export { loadMigrations, buildMigrationChain } from "./migrations/loader.js";
+export { applyMigration, type ApplyMigrationResult, type MigrationConflict, type ConflictKind } from "./migrations/apply.js";
+export {
+  updateProject,
+  type UpdateOptions,
+  type UpdateResult,
+  type TemplateUpdatePlan,
+  type TemplateUpdateOutcome,
+} from "./lifecycle/update.js";

@@ -1,0 +1,7 @@
+{
+  "unit": "route",
+  "description": "Next.js App Router GET handler at /api/{name_kebab}.",
+  "files": [
+    { "from": "route.ts.tmpl", "to": "app/api/{name_kebab}/route.ts" }
+  ]
+}

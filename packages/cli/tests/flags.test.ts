@@ -58,6 +58,25 @@ describe("parseArgs", () => {
   it("rejects a value flag with no value", () => {
     expect(() => parseArgs(["--data-stack"])).toThrow(/expects a value/);
   });
+
+  it("recognises lifecycle subcommands", () => {
+    expect(parseArgs(["remove", "adminpanel"]).command).toBe("remove");
+    expect(parseArgs(["remove", "adminpanel"]).positional).toBe("adminpanel");
+    expect(parseArgs(["add", "mobileapp", "--variant", "flutter"]).command).toBe("add");
+    expect(parseArgs(["add", "mobileapp", "--variant", "flutter"]).variant).toBe("flutter");
+    expect(parseArgs(["update"]).command).toBe("update");
+    expect(parseArgs(["update", "--dry-run"]).dryRun).toBe(true);
+    expect(parseArgs(["update", "--strict"]).strict).toBe(true);
+    expect(parseArgs(["update", "--templates", "./fixtures"]).templatesDir).toBe("./fixtures");
+  });
+
+  it("captures two positionals for generate", () => {
+    const f = parseArgs(["generate", "route", "users", "--target", "my-app-backend"]);
+    expect(f.command).toBe("generate");
+    expect(f.positional).toBe("route");
+    expect(f.positional2).toBe("users");
+    expect(f.target).toBe("my-app-backend");
+  });
 });
 
 describe("canRunNonInteractive", () => {

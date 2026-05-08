@@ -9,8 +9,11 @@
  */
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import type { ScaffoldConfig } from "./schemas.js";
 import type { ScaffoldedTemplate } from "./saas-config.js";
+
+const AGENT_RULES_FILES = ["CLAUDE.md", "agents.md", ".cursorrules"] as const;
 
 const PORTS = {
   "backend-fastapi": 8000,
@@ -184,12 +187,64 @@ export async function writeAgentRules(
   scaffolded: ScaffoldedTemplate[]
 ): Promise<string[]> {
   const content = renderAgentRules(cfg, scaffolded);
-  const targets = ["CLAUDE.md", "agents.md", ".cursorrules"];
   const written: string[] = [];
-  for (const name of targets) {
+  for (const name of AGENT_RULES_FILES) {
     const p = path.join(destDir, name);
     await fs.writeFile(p, content, "utf8");
     written.push(p);
   }
   return written;
+}
+
+/** Stable sha256 of an agent-rules file's content. Recorded in saas.config.json
+ *  so lifecycle commands can detect whether the user has hand-edited the file
+ *  before deciding to overwrite or write a `.new` sibling. */
+export function hashAgentRules(content: string): string {
+  return "sha256:" + createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Re-render and persist agent rules during a lifecycle command. Behavior:
+ *
+ *   - If `expectedHash` is undefined → first time tracking; just write all
+ *     three files and return the new hash.
+ *   - If the file on disk matches `expectedHash` → safe to overwrite; write
+ *     and return new hash.
+ *   - If the file has drifted (user edited it) → write `<file>.new` next to
+ *     the original instead of overwriting; return `{ drifted: true, ... }`
+ *     so the CLI can surface the situation to the user.
+ *
+ * Drift is checked against `CLAUDE.md` only — the three files always have
+ * identical content, so checking one is sufficient.
+ */
+export async function syncAgentRules(
+  destDir: string,
+  cfg: ScaffoldConfig,
+  scaffolded: ScaffoldedTemplate[],
+  expectedHash: string | undefined
+): Promise<{ paths: string[]; newHash: string; drifted: boolean }> {
+  const content = renderAgentRules(cfg, scaffolded);
+  const newHash = hashAgentRules(content);
+
+  // Drift check against CLAUDE.md — all three files share content, so one is enough.
+  const probe = path.join(destDir, "CLAUDE.md");
+  let drifted = false;
+  if (expectedHash !== undefined) {
+    try {
+      const existing = await fs.readFile(probe, "utf8");
+      if (hashAgentRules(existing) !== expectedHash) drifted = true;
+    } catch {
+      // missing file — treat as not drifted; we'll just write fresh copies.
+    }
+  }
+
+  const written: string[] = [];
+  for (const name of AGENT_RULES_FILES) {
+    const target = drifted
+      ? path.join(destDir, `${name}.new`)
+      : path.join(destDir, name);
+    await fs.writeFile(target, content, "utf8");
+    written.push(target);
+  }
+  return { paths: written, newHash, drifted };
 }

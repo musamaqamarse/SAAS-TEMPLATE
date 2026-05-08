@@ -1,0 +1,7 @@
+{
+  "unit": "component",
+  "description": "React component (server component by default).",
+  "files": [
+    { "from": "component.tsx.tmpl", "to": "components/{name_pascal}.tsx" }
+  ]
+}

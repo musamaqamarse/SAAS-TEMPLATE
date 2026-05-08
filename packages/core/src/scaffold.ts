@@ -2,12 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { ScaffoldConfig, TemplateMeta } from "./schemas.js";
+import type { DataStack, ScaffoldConfig, TemplateMeta } from "./schemas.js";
 import { TemplateMetaSchema } from "./schemas.js";
 import { copyDir, ensureEmpty, pathExists } from "./fs.js";
-import { processTreePlaceholders } from "./placeholders.js";
+import { processTreePlaceholders, type PlaceholderInput } from "./placeholders.js";
 import { buildSaasProjectConfig, writeSaasConfig, type ScaffoldedTemplate } from "./saas-config.js";
-import { writeAgentRules } from "./agent-rules.js";
+import { renderAgentRules, hashAgentRules, writeAgentRules } from "./agent-rules.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -46,7 +46,7 @@ interface AppPlan {
   destFolderName: string;
 }
 
-async function hasFlutter(): Promise<boolean> {
+export async function hasFlutter(): Promise<boolean> {
   try {
     await execFileAsync("flutter", ["--version"], { shell: true });
     return true;
@@ -106,7 +106,7 @@ async function planApps(cfg: ScaffoldConfig, templatesRoot: string, emit: (e: Sc
   return plans;
 }
 
-async function copyOverlay(templateDir: string, destDir: string, dataStack: "supabase" | "firebase") {
+async function copyOverlay(templateDir: string, destDir: string, dataStack: DataStack) {
   const commonDir = path.join(templateDir, "_common");
   if (await pathExists(commonDir)) {
     await copyDir(commonDir, destDir);
@@ -138,11 +138,11 @@ async function copyPrerendered(templateDir: string, destDir: string) {
  */
 async function applyFlutterPrerenderedSubstitutions(
   destDir: string,
-  cfg: ScaffoldConfig
+  input: Pick<PlaceholderInput, "bundleId" | "projectSnake">
 ): Promise<void> {
-  const orgParts = cfg.bundleId.split(".");
+  const orgParts = input.bundleId.split(".");
   const bundleOrg = orgParts.slice(0, -1).join("."); // "com.acme.myapp" → "com.acme"
-  const fullBundle = cfg.bundleId;
+  const fullBundle = input.bundleId;
 
   // 1. Rename android/app/src/main/kotlin/com/placeholder/placeholder_app/
   //    to android/app/src/main/kotlin/<bundleParts joined by />/
@@ -175,7 +175,7 @@ async function applyFlutterPrerenderedSubstitutions(
   const subs: Array<[RegExp, string]> = [
     [/com\.placeholder\.placeholder_app/g, fullBundle],
     [/com\.placeholder/g, bundleOrg],
-    [/placeholder_app/g, cfg.projectSnake],
+    [/placeholder_app/g, input.projectSnake],
   ];
 
   async function walk(dir: string): Promise<void> {
@@ -214,6 +214,69 @@ async function copyInfra(cfg: ScaffoldConfig, infraRoot: string, destRoot: strin
 }
 
 /**
+ * Per-app scaffolding primitive. Materializes a single template into `destDir`
+ * with overlays + placeholder substitution.
+ *
+ * Extracted from `scaffold()` so lifecycle commands (`add`, `update`) can
+ * reuse exactly the same logic for one app — keeping all the Flutter,
+ * overlay, and prerender quirks in one place.
+ *
+ * Caller is responsible for:
+ *   - Creating `destDir` (this fn just writes into it; `add`/`scaffold`
+ *     decide whether to refuse-if-exists or fail-if-exists).
+ *   - Updating `saas.config.json` afterwards (this fn doesn't touch it).
+ */
+export interface ScaffoldAppOptions {
+  /** Resolved templates/<name> directory, with `_template.json` inside. */
+  templateDir: string;
+  /** Pre-loaded template meta (caller already validated `supports.includes(dataStack)`). */
+  meta: TemplateMeta;
+  /** Absolute path of where this single app should land (will be mkdir'd). */
+  destDir: string;
+  /** Identity + dataStack only. ScaffoldConfig satisfies this structurally. */
+  input: PlaceholderInput & { dataStack: DataStack };
+  /** Pre-checked Flutter SDK availability for non-prerendered Dart templates.
+   *  When false (or omitted) and the template needs `flutter create`, the
+   *  call is skipped and a warning event is emitted. */
+  flutterAvailable?: boolean;
+  onEvent?: (event: ScaffoldEvent) => void;
+}
+
+export async function scaffoldApp(opts: ScaffoldAppOptions): Promise<ScaffoldedTemplate> {
+  const { templateDir, meta, destDir, input } = opts;
+  const emit = opts.onEvent ?? (() => {});
+  const destFolderName = path.basename(destDir);
+
+  emit({ kind: "app-start", displayName: meta.displayName, folder: destFolderName });
+  await fs.mkdir(destDir, { recursive: true });
+
+  if (meta.language === "dart") {
+    if (meta.prerendered) {
+      await copyPrerendered(templateDir, destDir);
+      await applyFlutterPrerenderedSubstitutions(destDir, input);
+    } else if (opts.flutterAvailable) {
+      const org = input.bundleId.split(".").slice(0, -1).join(".");
+      try {
+        await execFileAsync(
+          "flutter",
+          ["create", "--project-name", input.projectSnake, "--org", org, "."],
+          { cwd: destDir, shell: true }
+        );
+      } catch (err) {
+        emit({ kind: "warning", message: `flutter create failed: ${(err as Error).message.split("\n")[0]}` });
+      }
+    } else {
+      emit({ kind: "app-skipped-flutter", folder: destFolderName, reason: "flutter not on PATH" });
+    }
+  }
+
+  await copyOverlay(templateDir, destDir, input.dataStack);
+  await processTreePlaceholders(destDir, input);
+
+  return { meta, destFolderName };
+}
+
+/**
  * The single entry point. CLI, web UI, and any future SDK call this. No
  * prompting, no telemetry, no git/gh — those are CLI concerns layered on top.
  */
@@ -239,34 +302,16 @@ export async function scaffold(cfg: ScaffoldConfig, options: ScaffoldOptions): P
 
   for (const plan of plans) {
     const dest = path.join(cfg.destDir, plan.destFolderName);
-    emit({ kind: "app-start", displayName: plan.meta.displayName, folder: plan.destFolderName });
-    await fs.mkdir(dest, { recursive: true });
-
-    if (plan.meta.language === "dart") {
-      if (plan.meta.prerendered) {
-        // Prerendered shell — `_prerendered/` is the canonical starter; no SDK needed.
-        await copyPrerendered(plan.templateDir, dest);
-        await applyFlutterPrerenderedSubstitutions(dest, cfg);
-      } else if (flutterAvailable) {
-        const org = cfg.bundleId.split(".").slice(0, -1).join(".");
-        try {
-          await execFileAsync(
-            "flutter",
-            ["create", "--project-name", cfg.projectSnake, "--org", org, "."],
-            { cwd: dest, shell: true }
-          );
-        } catch (err) {
-          emit({ kind: "warning", message: `flutter create failed: ${(err as Error).message.split("\n")[0]}` });
-        }
-      } else {
-        emit({ kind: "app-skipped-flutter", folder: plan.destFolderName, reason: "flutter not on PATH" });
-      }
-    }
-
-    await copyOverlay(plan.templateDir, dest, cfg.dataStack);
-    await processTreePlaceholders(dest, cfg);
+    const result = await scaffoldApp({
+      templateDir: plan.templateDir,
+      meta: plan.meta,
+      destDir: dest,
+      input: cfg,
+      flutterAvailable,
+      onEvent: emit,
+    });
     createdDirs.push(dest);
-    scaffolded.push({ meta: plan.meta, destFolderName: plan.destFolderName });
+    scaffolded.push(result);
   }
 
   if (cfg.includeInfra) {
@@ -277,14 +322,17 @@ export async function scaffold(cfg: ScaffoldConfig, options: ScaffoldOptions): P
     }
   }
 
+  // CLAUDE.md / agents.md / .cursorrules — write before saas.config.json so we
+  // can record their hash, which `update`/`add`/`remove` use to detect drift.
+  const agentRulesPaths = await writeAgentRules(cfg.destDir, cfg, scaffolded);
+  const agentRulesHash = hashAgentRules(renderAgentRules(cfg, scaffolded));
+  emit({ kind: "agent-rules", files: agentRulesPaths.map((p) => path.basename(p)) });
+
   // saas.config.json — what every lifecycle command will read
   const projectConfig = buildSaasProjectConfig(cfg, scaffolded, options.cliVersion ?? "0.0.0");
+  projectConfig.agentRulesHash = agentRulesHash;
   const saasConfigPath = await writeSaasConfig(cfg.destDir, projectConfig);
   emit({ kind: "saas-config", file: path.basename(saasConfigPath) });
-
-  // CLAUDE.md / agents.md / .cursorrules
-  const agentRulesPaths = await writeAgentRules(cfg.destDir, cfg, scaffolded);
-  emit({ kind: "agent-rules", files: agentRulesPaths.map((p) => path.basename(p)) });
 
   return { destDir: cfg.destDir, createdDirs, scaffolded, saasConfigPath, agentRulesPaths };
 }

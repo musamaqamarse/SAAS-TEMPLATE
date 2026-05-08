@@ -10,6 +10,10 @@ import { capture, captureException, initTelemetry, shutdownTelemetry } from "./t
 import { ghCreateRepo, gitInitAndCommit, hasGh, hasGit } from "./git.js";
 import { repoRoot, __dirname } from "./utils.js";
 import { canRunNonInteractive, parseArgs, type ParsedFlags } from "./flags.js";
+import { runRemove } from "./commands/remove.js";
+import { runAdd } from "./commands/add.js";
+import { runGenerate } from "./commands/generate.js";
+import { runUpdate } from "./commands/update.js";
 
 function readPackageVersion(): string {
   // Walk upward from this file looking for the CLI package's package.json
@@ -38,12 +42,17 @@ ${pc.bold(pc.cyan("create-saas"))} — scaffold a new SaaS project
 ${pc.bold("Usage")}
   create-saas [project-name]              Interactive scaffold (default)
   create-saas doctor                      Check your toolchain
+  create-saas add <role> [--variant id]   Add an app to an existing scaffold
+  create-saas remove <role>               Remove an app (role: backend|website|adminpanel|mobileapp)
+  create-saas generate <unit> <name>      Generate a route/model/component/page (use --target if ambiguous)
+  create-saas update                      Apply pending template migrations (use --dry-run to preview)
   create-saas --version                   Print version
   create-saas --help                      Print this help
 
 ${pc.bold("Non-interactive mode")} (for CI / agents)
   create-saas --config <path>             Scaffold from a JSON ScaffoldConfig
   create-saas <name> --yes [flags]        Skip prompts, fill gaps with defaults
+  create-saas remove <role> --yes         Skip the confirmation prompt
 
 ${pc.bold("Flags")}
   --name <text>              Project name (alternative to positional)
@@ -207,6 +216,10 @@ async function main() {
       capture("doctor_invoked");
       return await runDoctor();
     }
+    if (flags.command === "remove") return await runRemove(flags);
+    if (flags.command === "add") return await runAdd(flags);
+    if (flags.command === "generate") return await runGenerate(flags);
+    if (flags.command === "update") return await runUpdate(flags);
     return await runScaffold(flags);
   } catch (err) {
     if (err instanceof Error) {

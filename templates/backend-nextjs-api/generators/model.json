@@ -1,0 +1,7 @@
+{
+  "unit": "model",
+  "description": "TypeScript domain types for one entity (read shape + create/update payloads).",
+  "files": [
+    { "from": "model.ts.tmpl", "to": "app/types/{name_kebab}.ts" }
+  ]
+}

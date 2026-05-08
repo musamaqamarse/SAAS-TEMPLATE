@@ -1,0 +1,13 @@
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/{name_kebab}", tags=["{name_kebab}"])
+
+
+@router.get("")
+async def list_{name_snake}():
+    return {"items": []}
+
+
+# Mount this router from app/main.py:
+#   from app.routers import {name_snake}
+#   app.include_router({name_snake}.router)

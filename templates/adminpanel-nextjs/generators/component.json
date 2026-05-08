@@ -1,0 +1,7 @@
+{
+  "unit": "component",
+  "description": "React component for the admin panel.",
+  "files": [
+    { "from": "component.tsx.tmpl", "to": "components/{name_pascal}.tsx" }
+  ]
+}

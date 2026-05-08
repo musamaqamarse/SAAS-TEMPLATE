@@ -1,0 +1,7 @@
+{
+  "unit": "component",
+  "description": "React component for the Vite SPA.",
+  "files": [
+    { "from": "component.tsx.tmpl", "to": "src/components/{name_pascal}.tsx" }
+  ]
+}

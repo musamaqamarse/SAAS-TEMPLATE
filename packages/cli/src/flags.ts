@@ -1,10 +1,18 @@
 /**
  * Tiny argv parser. We deliberately avoid a full CLI library — every flag
- * here corresponds to one field on `ScaffoldConfig`, the schema does
- * validation, and there's no plugin surface to expose.
+ * here corresponds to one field on `ScaffoldConfig` (or a small set of
+ * lifecycle-command flags), the schema does validation, and there's no plugin
+ * surface to expose.
  *
- * Supports:
- *   <positional projectName>
+ * Top-level commands:
+ *   <positional projectName>            scaffold (default)
+ *   doctor                              toolchain check
+ *   remove <role>                       remove an app role
+ *   add <role>                          add an app role
+ *   update                              run pending template migrations
+ *   generate <unit> <name>              generate a unit (route/model/component/page)
+ *
+ * Scaffold flags (shared with the default command):
  *   --config <path>           load a JSON ScaffoldConfig (overridden by other flags)
  *   --name <text>             same as positional
  *   --description <text>
@@ -19,11 +27,32 @@
  *   --no-git
  *   --create-github-repos
  *   --public                  GitHub repo visibility (default private)
- *   --yes / -y                accept all defaults; skip prompts entirely
+ *
+ * Lifecycle flags (used by remove/add/update/generate):
+ *   --variant <id>            for `add` (e.g. fastapi, nextjs-api)
+ *   --target <folder>         for `generate` when multiple apps could host the unit
+ *   --templates <dir>         override templates root (handy for test fixtures)
+ *   --dry-run                 print the plan without applying changes
+ *   --strict                  treat conflicts as failure (non-zero exit)
+ *   --yes / -y                accept all defaults / skip confirmation prompts
  */
+export type Command =
+  | "scaffold"
+  | "doctor"
+  | "help"
+  | "version"
+  | "remove"
+  | "add"
+  | "update"
+  | "generate";
+
 export interface ParsedFlags {
-  command: "scaffold" | "doctor" | "help" | "version";
+  command: Command;
+  /** First positional after the command name. For scaffold/remove/add: project name or role.
+   *  For generate: the unit (route/model/component/page). */
   positional?: string;
+  /** Second positional. For generate: the name of the thing to generate. */
+  positional2?: string;
   configPath?: string;
   yes: boolean;
 
@@ -41,6 +70,13 @@ export interface ParsedFlags {
   initGit?: boolean;
   createGithubRepos?: boolean;
   githubVisibility?: "private" | "public";
+
+  // Lifecycle command flags
+  variant?: string;
+  target?: string;
+  templatesDir?: string;
+  dryRun?: boolean;
+  strict?: boolean;
 }
 
 const VALUE_FLAGS = new Set([
@@ -54,7 +90,12 @@ const VALUE_FLAGS = new Set([
   "--mobile",
   "--bundle-vendor",
   "--out",
+  "--variant",
+  "--target",
+  "--templates",
 ]);
+
+const SUBCOMMANDS = new Set(["doctor", "remove", "add", "update", "generate"]);
 
 export function parseArgs(argv: string[]): ParsedFlags {
   const out: ParsedFlags = { command: "scaffold", yes: false };
@@ -64,9 +105,13 @@ export function parseArgs(argv: string[]): ParsedFlags {
   const first = argv[0];
   if (first === "--help" || first === "-h") return { ...out, command: "help" };
   if (first === "--version" || first === "-v") return { ...out, command: "version" };
-  if (first === "doctor") return { ...out, command: "doctor" };
 
   let i = 0;
+  if (SUBCOMMANDS.has(first)) {
+    out.command = first as Command;
+    i = 1;
+  }
+
   while (i < argv.length) {
     const a = argv[i];
 
@@ -76,6 +121,8 @@ export function parseArgs(argv: string[]): ParsedFlags {
     if (a === "--create-github-repos") { out.createGithubRepos = true; i++; continue; }
     if (a === "--public") { out.githubVisibility = "public"; i++; continue; }
     if (a === "--private") { out.githubVisibility = "private"; i++; continue; }
+    if (a === "--dry-run") { out.dryRun = true; i++; continue; }
+    if (a === "--strict") { out.strict = true; i++; continue; }
 
     if (VALUE_FLAGS.has(a)) {
       const v = argv[i + 1];
@@ -93,6 +140,9 @@ export function parseArgs(argv: string[]): ParsedFlags {
         case "--mobile": out.mobile = v; break;
         case "--bundle-vendor": out.bundleVendor = v; break;
         case "--out": out.out = v; break;
+        case "--variant": out.variant = v; break;
+        case "--target": out.target = v; break;
+        case "--templates": out.templatesDir = v; break;
       }
       i += 2;
       continue;
@@ -102,8 +152,9 @@ export function parseArgs(argv: string[]): ParsedFlags {
       throw new Error(`Unknown flag: ${a}`);
     }
 
-    // Positional — first one wins (project name).
+    // Positional. First wins → positional; second → positional2.
     if (out.positional == null) out.positional = a;
+    else if (out.positional2 == null) out.positional2 = a;
     i++;
   }
 

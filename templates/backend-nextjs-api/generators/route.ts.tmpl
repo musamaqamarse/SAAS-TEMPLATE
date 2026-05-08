@@ -1,0 +1,9 @@
+import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  return NextResponse.json({ items: [] satisfies unknown[] });
+}
+
+// Add POST/PATCH/DELETE handlers as your endpoint grows.

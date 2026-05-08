@@ -74,12 +74,31 @@ export type ScaffoldConfig = z.infer<typeof ScaffoldConfigSchema>;
 
 /**
  * Persisted shape of `saas.config.json`, written into every scaffolded
- * project root. This is the contract that future lifecycle commands
- * (`update`, `add`, `remove`) rely on, so be careful when changing it —
- * bump `schemaVersion` if you do.
+ * project root. This is the contract that lifecycle commands (`update`,
+ * `add`, `remove`, `generate`) rely on.
+ *
+ * v2 (Phase 3) adds:
+ *   - `templates[].appliedMigrations` — IDs of migrations already run, so
+ *     `update` is idempotent across reruns and partial failures.
+ *   - `agentRulesHash` — sha256 of the last-rendered CLAUDE.md content. Lets
+ *     `update`/`add`/`remove` detect whether the user has hand-edited the
+ *     agent rules file before deciding to overwrite or write a `.new` sibling.
+ *
+ * v1 files load fine via `loadSaasConfig` — missing fields are populated with
+ * safe defaults (`appliedMigrations: []`, `agentRulesHash: undefined`).
  */
+export const SaasProjectTemplateEntrySchema = z.object({
+  name: z.string(),
+  role: z.string(),
+  version: z.string(),
+  folder: z.string(),
+  /** Migration IDs (e.g. "1.0.0_to_1.1.0") already applied to this template. */
+  appliedMigrations: z.array(z.string()).default([]),
+});
+export type SaasProjectTemplateEntry = z.infer<typeof SaasProjectTemplateEntrySchema>;
+
 export const SaasProjectConfigSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   createdAt: z.string(),
   cliVersion: z.string(),
   project: z.object({
@@ -98,13 +117,7 @@ export const SaasProjectConfigSchema = z.object({
     mobile: MobileChoiceSchema,
     includeInfra: z.boolean(),
   }),
-  templates: z.array(
-    z.object({
-      name: z.string(),
-      role: z.string(),
-      version: z.string(),
-      folder: z.string(),
-    })
-  ),
+  templates: z.array(SaasProjectTemplateEntrySchema),
+  agentRulesHash: z.string().optional(),
 });
 export type SaasProjectConfig = z.infer<typeof SaasProjectConfigSchema>;
